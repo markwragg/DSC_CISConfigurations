@@ -1,32 +1,3 @@
-<#
-    .SYNOPSIS
-        CIS_WindowsServer2016_v100_MS_lvl1.ps1
-
-    .DESCRIPTION
-        This script performs server hardening via Desired State Configuration (DSC).
-
-        Post-execution the configuration can be optionally validated via the following Pester script: 
-        CIS_WindowsServer2016_v100_MS_lvl1.tests.ps1
-#>
-
-# Install/load Prerequisites
-
-$Modules = 'NetworkingDsc', 'AuditPolicyDsc', 'SecurityPolicyDsc'
-
-ForEach ($Module in $Modules) {
-    Try {
-        If (-not (Get-Module -Name $Module -ListAvailable)) {
-            Install-Module -Name $Module -ErrorAction Stop
-        }
-
-        Import-Module -Name $Module
-    }
-    Catch {
-        Write-Error $_
-        Throw "Failed to install or import $Module, cannot continue."
-    }    
-}
-
 # DSC Configuration -- CIS Level 1 hardening standards for Member Servers
 
 Configuration CIS_WindowsServer2016_v100_MS_lvl1 {
@@ -215,7 +186,7 @@ Configuration CIS_WindowsServer2016_v100_MS_lvl1 {
         # 2.2.21 (L1) Ensure 'Deny log on through Remote Desktop Services' to include 'Guests, Local account' - Excluded for Workgroup Server
         UserRightsAssignment DenylogonthroughRemoteDesktopServices {
             Policy   = 'Deny_log_on_through_Remote_Desktop_Services'
-            Identity = ''
+            Identity = 'Guests','NT AUTHORITY\Local account'
             Force    = $true
         }
 
@@ -417,7 +388,7 @@ Configuration CIS_WindowsServer2016_v100_MS_lvl1 {
             Interactive_logon_Machine_inactivity_limit = '900'
             
             # 2.3.7.4 (L1) Configure 'Interactive logon: Message text for users attempting to log on'
-            Interactive_logon_Message_text_for_users_attempting_to_log_on = 'This system is restricted to authorized users. Individuals who attempt unauthorized access will be prosecuted. If you are unauthorized, terminate access now. Click OK to indicate your acceptance of this information.'
+            Interactive_logon_Message_text_for_users_attempting_to_log_on = 'This system is restricted to authorized users. Individuals who attempt unauthorized access will be prosecuted. If you are unauthorized terminate access now. Click OK to indicate your acceptance of this information.'
 
             # 2.3.7.5 (L1) Configure 'Interactive logon: Message title for users attempting to log on'
             Interactive_logon_Message_title_for_users_attempting_to_log_on = 'IT IS AN OFFENSE TO CONTINUE WITHOUT PROPER AUTHORIZATION'
@@ -453,7 +424,7 @@ Configuration CIS_WindowsServer2016_v100_MS_lvl1 {
             Microsoft_network_server_Disconnect_clients_when_logon_hours_expire = 'Enabled'
             
             # 2.3.9.5 (L1) Ensure 'Microsoft network server: Server SPN target name validation level' is set to 'Accept if provided by client' or higher (MS only)
-            Microsoft_network_server_Server_SPN_target_name_validation_level = 'Accept if provided by the client'
+            Microsoft_network_server_Server_SPN_target_name_validation_level = 'Accept if provided by client'
             
             # 2.3.10.1 (L1) Ensure 'Network access: Allow anonymous SID/Name translation' is set to 'Disabled'
             Network_access_Allow_anonymous_SID_Name_translation = 'Disabled'
@@ -471,7 +442,7 @@ Configuration CIS_WindowsServer2016_v100_MS_lvl1 {
             Network_access_Named_Pipes_that_can_be_accessed_anonymously = ''
             
             # 2.3.10.7 (L1) Configure 'Network access: Remotely accessible registry paths'
-            Network_access_Remotely_accessible_registry_paths = 'System\CurrentControlSet\Control\ProductOptions','System\CurrentControlSet\Control\Server Applications','Software\Microsoft\Windows NT\CurrentVersion'
+            Network_access_Remotely_accessible_registry_paths = 'System\CurrentControlSet\Control\ProductOptions,System\CurrentControlSet\Control\Server Applications,Software\Microsoft\Windows NT\CurrentVersion'
             
             # 2.3.10.8 (L1) Configure 'Network access: Remotely accessible registry paths and sub-paths'
             Network_access_Remotely_accessible_registry_paths_and_subpaths = 'Software\Microsoft\Windows NT\CurrentVersion\Print,Software\Microsoft\Windows NT\CurrentVersion\Windows,System\CurrentControlSet\Control\Print\Printers,System\CurrentControlSet\Services\Eventlog,Software\Microsoft\OLAP Server,System\CurrentControlSet\Control\ContentIndex,System\CurrentControlSet\Control\Terminal Server,System\CurrentControlSet\Control\Terminal Server\UserConfig,System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration,Software\Microsoft\Windows NT\CurrentVersion\Perflib,System\CurrentControlSet\Services\SysmonLog'

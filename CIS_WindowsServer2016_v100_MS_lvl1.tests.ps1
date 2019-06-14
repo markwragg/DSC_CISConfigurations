@@ -7,18 +7,32 @@
         'CIS_WindowsServer2016_v100_MS_lvl1.ps1' script has been successful.
 #>
 
-#Install pre-req modules
-Try {
-    If (-not (Get-Module -Name PoshSpec -ListAvailable)) {
-        Install-Module -Name PoshSpec -Scope CurrentUser
+# Install/load Prerequisites
+
+$RequiredModules = @(
+    @{
+        Name = 'Pester'
+        MinimumVersion = [version]'4.4.2'
+        SkipPublisherCheck = $true
+    },
+    @{
+        Name = 'PoshSpec'
+        MinimumVersion = [version]'2.2.7'
     }
-}
-Catch {
-    Write-Error $_
-    Throw 'Failed to install PoshSpec, cannot continue.'
+)
+
+ForEach ($RequiredModule in $RequiredModules) {
+
+    Try {
+        Import-Module -Name $RequiredModule.Name -MinimumVersion $RequiredModule.MinimumVersion -ErrorAction Stop
+    }
+    Catch {
+        Install-Module @RequiredModule -Force
+    }
+
+    Import-Module -Name $RequiredModule.Name -Force
 }
 
-Import-Module -Name 'PoshSpec'
 
 function Get-SecurityPolicy {
     $SecurityPolicyFilePath = Join-Path -Path $env:temp -ChildPath 'SecurityPolicy.inf'
@@ -59,26 +73,26 @@ Describe 'Security Configuration -- CIS Windows Server 2016 v1.0.0 Member Server
 
         # 1.1.1 (L1) Ensure 'Enforce password history' is set to '24 or more password(s)'
         It 'Password History Size should be 24' {
-            $SecurityPolicy.'System Access'.'PasswordHistorySize' | Should -BeGreaterOrEqual 24 -Because '1.1.1 (L1)'
+            [int]$SecurityPolicy.'System Access'.'PasswordHistorySize' | Should -BeGreaterOrEqual 24 -Because '1.1.1 (L1)'
         }
 
         # 1.1.2 (L1) Ensure 'Maximum password age' is set to '60 or fewer days, but not 0'
         It 'Maximum Password Age should be less than or equal to 60 days' {
-            $SecurityPolicy.'System Access'.'MaximumPasswordAge' | Should -BeLessOrEqual 60 -Because '1.1.2 (L1)'
+            [int]$SecurityPolicy.'System Access'.'MaximumPasswordAge' | Should -BeLessOrEqual 60 -Because '1.1.2 (L1)'
         }
 
         It 'Maximum Password Age should be greater than 0 days' {
-            $SecurityPolicy.'System Access'.'MaximumPasswordAge' | Should -BeGreaterThan 0 -Because '1.1.2 (L1)'
+            [int]$SecurityPolicy.'System Access'.'MaximumPasswordAge' | Should -BeGreaterThan 0 -Because '1.1.2 (L1)'
         }
 
         # 1.1.3 (L1) Ensure 'Minimum password age' is set to '1 or more day(s)'
         It 'Minimum Password Age should be 1 or more days' {
-            $SecurityPolicy.'System Access'.'MinimumPasswordAge' | Should -BeGreaterOrEqual 1 -Because '1.1.3 (L1)'
+            [int]$SecurityPolicy.'System Access'.'MinimumPasswordAge' | Should -BeGreaterOrEqual 1 -Because '1.1.3 (L1)'
         }
 
         # 1.1.4 (L1) Ensure 'Minimum password length' is set to '14 or more character(s)'
         It 'Minimum Password Length should be 14' {
-            $SecurityPolicy.'System Access'.'MinimumPasswordLength' | Should -Be 14 -Because '1.1.4 (L1)'
+            [int]$SecurityPolicy.'System Access'.'MinimumPasswordLength' | Should -BeGreaterOrEqual 14 -Because '1.1.4 (L1)'
         }
 
         # 1.1.5 (L1) Ensure 'Password must meet complexity requirements' is set to 'Enabled'
@@ -93,22 +107,22 @@ Describe 'Security Configuration -- CIS Windows Server 2016 v1.0.0 Member Server
 
         # 1.2.1 (L1) Ensure 'Account lockout duration' is set to '15 or more minute(s)'
         It 'Account Lockout Duration should be 15 or more' {
-            $SecurityPolicy.'System Access'.'LockoutDuration' | Should -BeGreaterOrEqual 15 -Because '1.2.1 (L1)'
+            [int]$SecurityPolicy.'System Access'.'LockoutDuration' | Should -BeGreaterOrEqual 15 -Because '1.2.1 (L1)'
         } 
 
         # 1.2.2 (L1) Ensure 'Account lockout threshold' is set to '10 or fewer invalid logon attempt(s), but not 0'
         It 'Account Lockout Threshold should be 10 or fewer' {
-            $SecurityPolicy.'System Access'.'LockoutBadCount' | Should -BeLessOrEqual 10 -Because '1.2.2 (L1)'
+            [int]$SecurityPolicy.'System Access'.'LockoutBadCount' | Should -BeLessOrEqual 10 -Because '1.2.2 (L1)'
         }
 
         # 1.2.2 (L1) Ensure 'Account lockout threshold' is set to '10 or fewer invalid logon attempt(s), but not 0'
         It 'Account Lockout Threshold should be greater than 0' {
-            $SecurityPolicy.'System Access'.'LockoutBadCount' | Should -BeGreaterThan 0 -Because '1.2.2 (L1)'
+            [int]$SecurityPolicy.'System Access'.'LockoutBadCount' | Should -BeGreaterThan 0 -Because '1.2.2 (L1)'
         }
 
         # 1.2.3 (L1) Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)'
         It 'Account Lockout Threshold should be greater than 0' {
-            $SecurityPolicy.'System Access'.'ResetLockoutCount' | Should -BeGreaterOrEqual 15 -Because '1.2.3 (L1)'
+            [int]$SecurityPolicy.'System Access'.'ResetLockoutCount' | Should -BeGreaterOrEqual 15 -Because '1.2.3 (L1)'
         }
     }
 
@@ -121,20 +135,20 @@ Describe 'Security Configuration -- CIS Windows Server 2016 v1.0.0 Member Server
             Should -Be $null -Because '2.2.1 (L1)'
         }
 
-        # 2.2.2 (L1) Configure 'Access this computer from the network' -- Excluded, setting to custom values via SSM Parameter.
-        #UserRightsAssignment ByRight 'SeNetworkLogonRight' { 
-        #    Should -Contain 'BUILTIN\Administrators' -Because '2.2.2 (L1)'
-        #}
+        # 2.2.2 (L1) Configure 'Access this computer from the network'
+        UserRightsAssignment ByRight 'SeNetworkLogonRight' { 
+            Should -Contain 'BUILTIN\Administrators' -Because '2.2.2 (L1)'
+        }
 
-        # 2.2.2 (L1) Configure 'Access this computer from the network' -- Excluded, setting to custom values via SSM Parameter.
-        #UserRightsAssignment ByRight 'SeNetworkLogonRight' { 
-        #    Should -Contain 'NT AUTHORITY\Authenticated Users' -Because '2.2.2 (L1)'
-        #}
+        # 2.2.2 (L1) Configure 'Access this computer from the network'
+        UserRightsAssignment ByRight 'SeNetworkLogonRight' { 
+            Should -Contain 'NT AUTHORITY\Authenticated Users' -Because '2.2.2 (L1)'
+        }
 
-        # 2.2.2 (L1) Configure 'Access this computer from the network' -- Excluded, setting to custom values via SSM Parameter.
-        #UserRightsAssignment ByRight 'SeNetworkLogonRight' { 
-        #    Should -HaveCount 2 -Because '2.2.2 (L1)'
-        #}
+        # 2.2.2 (L1) Configure 'Access this computer from the network'
+        UserRightsAssignment ByRight 'SeNetworkLogonRight' { 
+            Should -HaveCount 2 -Because '2.2.2 (L1)'
+        }
     
         # 2.2.3 (L1) Ensure 'Act as part of the operating system' is set to 'No One'
         UserRightsAssignment ByRight 'SeTcbPrivilege' { 
@@ -164,15 +178,15 @@ Describe 'Security Configuration -- CIS Windows Server 2016 v1.0.0 Member Server
             Should -HaveCount 3 -Because '2.2.5 (L1)'
         }
     
-        # 2.2.6 (L1) Configure 'Allow log on locally' -- Excluded, setting to custom values via SSM Parameter.
-        #UserRightsAssignment ByRight 'SeInteractiveLogonRight' { 
-        #    Should -Be 'BUILTIN\Administrators' -Because '2.2.6 (L1)'
-        #}
+        # 2.2.6 (L1) Configure 'Allow log on locally'
+        UserRightsAssignment ByRight 'SeInteractiveLogonRight' { 
+            Should -Be 'BUILTIN\Administrators' -Because '2.2.6 (L1)'
+        }
 
-        # 2.2.7 (L1) Configure 'Allow log on through Remote Desktop Services' -- Excluded, setting to custom values via SSM Parameter.
-        #UserRightsAssignment ByRight 'SeRemoteInteractiveLogonRight' { 
-        #    Should -Be 'BUILTIN\Administrators' -Because '2.2.7 (L1)'
-        #}
+        # 2.2.7 (L1) Configure 'Allow log on through Remote Desktop Services'
+        UserRightsAssignment ByRight 'SeRemoteInteractiveLogonRight' { 
+            Should -Be 'BUILTIN\Administrators' -Because '2.2.7 (L1)'
+        }
 
         # 2.2.8 (L1) Ensure 'Back up files and directories' is set to 'BUILTIN\Administrators'
         UserRightsAssignment ByRight 'SeBackupPrivilege' {
@@ -364,12 +378,12 @@ Describe 'Security Configuration -- CIS Windows Server 2016 v1.0.0 Member Server
 
         # 2.3.1.5 (L1) Configure 'Accounts: Rename administrator account'
         It 'Admin account should be renamed' {
-            $SecurityPolicy.'System Access'.'NewAdministratorName' | Should -Be '"Administrator"' -Because '2.3.1.5 (L1)'
+            $SecurityPolicy.'System Access'.'NewAdministratorName'.Trim() | Should -Be '"renamedadministrator"' -Because '2.3.1.5 (L1)'
         }
         
         # 2.3.1.6 (L1) Configure 'Accounts: Rename guest account'
         It 'Guest Account should be renamed' {
-            $SecurityPolicy.'System Access'.'NewGuestName' | Should -Be '"figuest"' -Because '2.3.1.6 (L1)'
+            $SecurityPolicy.'System Access'.'NewGuestName'.Trim() | Should -Be '"renamedguest"' -Because '2.3.1.6 (L1)'
         }
 
         # 2.3.2.1 (L1) Ensure 'Audit: Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings' is set to 'Enabled'
@@ -544,7 +558,7 @@ Describe 'Security Configuration -- CIS Windows Server 2016 v1.0.0 Member Server
         # 2.3.10.6 (L1) Configure 'Network access: Named Pipes that can be accessed anonymously'
         If (Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Services\LanManServer\Parameters\' -Name NullSessionPipes -ErrorAction SilentlyContinue) {
             Registry 'HKLM:\System\CurrentControlSet\Services\LanManServer\Parameters\' 'NullSessionPipes' {
-                Should -Be '' -Because '2.3.10.6 (L1)'
+                Should -Be $null -Because '2.3.10.6 (L1)'
             }
         }
 
